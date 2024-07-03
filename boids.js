@@ -23,7 +23,7 @@ function initBoids() {
       dy: Math.random() * 10 - 5,
       history: [],
       perching: false,
-      energy: 0,
+      perchstart: 0
     };
   }
 }
@@ -69,13 +69,19 @@ function keepWithinBounds(boid) {
   }
   if (boid.y < margin) {
     boid.dy += turnFactor;
-    //Perching behavior
-    if(Math.random()*(1/boid.energy)>10) {
-
-    }
   }
-  if (boid.y > height - margin) {
-    boid.dy -= turnFactor;
+  if (boid.y > height - margin + 100) {
+    if(Math.random()>0.98) {
+      boid.perchstart = Date.now();
+      boid.perching = true;
+      boid.dx = 0;
+      boid.dy = -1;
+      boid.y = height -100;
+      boid.history = [];
+    }
+    else {
+      boid.dy -= turnFactor;
+    }
   }
 }
 
@@ -247,17 +253,28 @@ function animationLoop() {
   // Update each boid
   for (let boid of boids) {
     // Update the velocities according to each rule
-    flyTowardsCenter(boid);
-    avoidOthers(boid);
-    matchVelocity(boid);
-    limitSpeed(boid);
-    keepWithinBounds(boid);
+    if(boid.perching && (Date.now() - boid.perchstart) > 1500){
+      boid.perching = false;
+      perchstart = 0;
+      boid.dy = -100;
+    }
+    else if (boid.perching) {
+      boid.dy = -1;
+      boid.dx = 0;
+    }
+    else {
+      flyTowardsCenter(boid);
+      avoidOthers(boid);
+      matchVelocity(boid);
+      limitSpeed(boid);
+      keepWithinBounds(boid);
 
-    // Update the position based on the current velocity
-    boid.x += boid.dx;
-    boid.y += boid.dy;
-    boid.history.push([boid.x, boid.y])
-    boid.history = boid.history.slice(-50);
+      // Update the position based on the current velocity
+      boid.x += boid.dx;
+      boid.y += boid.dy;
+      boid.history.push([boid.x, boid.y])
+      boid.history = boid.history.slice(-50);
+    }
   }
   for(var i =0; i<11;i++) {
     flyTowardsCenter(predator);
