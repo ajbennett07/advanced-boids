@@ -1,15 +1,14 @@
 # Boids algorithm demonstration
 
 Copyright 2020 Ben Eater
+Copyright 2024 Albert Bennett
 
 This code is [MIT licensed](http://en.wikipedia.org/wiki/MIT_License).
 
 ## What is this?
-This is a simple demonstration of the boids algorithm that's featured in this Smarter Every Day video:
+This is a fork of the boids algorithm implemented by Ben Eater with extra boid behaviors.
 
-[<img src=https://img.youtube.com/vi/4LWmRuB-uNU/maxresdefault.jpg width=360/>](https://www.youtube.com/watch?v=4LWmRuB-uNU)
-
-This simulation is running on [my website](https://eater.net/boids) if you’d like to check it out.
+The original simulation can be found on [his website](https://eater.net/boids)
 
 ## How does it work?
 
@@ -17,31 +16,50 @@ Each of the boids (bird-oid objects) obeys three simple rules:
 
 ### 1. Coherence
 
-Each boid flies towards the the other boids. But they don't just immediately fly directly at each other. They gradually steer towards each other at a rate that you can adjust with the `centeringFactor` variable. In the demo, you can adjust this from 0 to 0.01 with the "coherence" slider.
+Each boid gradually changes direction so that it is pointing at the "center of mass" of the other total flock of boids.
+
 
 ### 2. Separation
 
-Each boid also tries to avoid running into the other boids. If it gets too close to another boid it will steer away from it. You can control how quickly it steers with the `avoidFactor` variable. In the demo, you can adjust this from 0 to 0.1 with the "separation" slider.
+Each boid also tries to avoid running into other boids. It does this by frantically steering away from other boids in its FOV.
+Boids also steer away from the predatoid (see below) several times more intensly.
 
 ### 3. Alignment
 
-Finally, each boid tries to match the vector (speed and direction) of the other boids around it. Again, you can control how quickly they try to match vectors using the `centeringFactor` variable. In the demo, you can adjust this from 0 to 0.1 with the "coherence" slider.
+Boids also try to conform their velocity vectors with the rest of the flock. This is done by gradually adjusting the velocity of each boid to be closer to the mean of the velocities of boids in its FOV.
+
+## Additions
+
+These are all the "extras" I've added from the base boid algorithm:
+
+### 1. The Predatoid
+
+The predatoid is a red-colored boid that has slightly different behavior from the others. Its pathfinding only takes into Alignment into account. Other boids will "run away" from the predatoid. This models predators in real ecosystems.
+
+### 2. Perching
+
+If a boid finds itself at the bottom of the screen, it has a small chance to enter perching mode. While a boid is perching, it doesn't move and points straight up. After a short period of rest, the boid shoots back into the sky and is absorbed into the flock.
 
 ## Visual range
 
-There are a ton of ways to extend this simple model to better simulate the behavior of different animals. An example I showed in the video is to limit the "visual range" of each boid. Real animals can't see the entire flock; they can only see the other animals around them. By adjusting the `visualRange` variable, you can adjust how far each boid can "see"—that is which other boids it considers when applying the three rules above.
+FOV, or "field of vision", is the last component of the basic boid components. Just like real animals are limited to only be able to see animals nearby, the components of the boid algorithm only take into consideration boids within a certain distance from a given boid.
 
 ## How do I run this code?
 
-It ought to run in any web browser. Download (or clone) the files. Then, just double-clicking on `index.html` on most computers will open the simulation in your web browser. You can then edit `boids.js` to tweak and experiment with the algorithm. Simply save your changes and reload the web browser page to see the effect.
+Simply download the code and run `index.html` in your browser. I make no attempt to make this browser-universal, though it should run everywhere.
 
-## What else can I do?
+## What have we done? What are we going to do?
 
-There are lots of features you could try adding to the code yourself:
+Some of the extra algorithms implemented are:
 
-- Add a predator that the boids try to avoid that scatters the flock if it gets too close.
-- Add a strong wind or current to see what effect it has on the flock.
-- Add "perching" behavior. If a boid gets close to the bottom of the screen, have it land and hang out on the ground for a bit before taking off again and rejoining the flock.
-- Make it 3D! The boids' velocity is currently represented as a 2D vector. You could change them to 3D vectors and update the vector math to work. To draw in 3D, you could just change the size of the boids to represent how far away they are.
+Pretatoids (see above)
+Perching behavior
 
-See [this link](http://www.kfish.org/boids/pseudocode.html) for more ideas and hints on how to do some of the ideas above.
+Future plans include:
+Predatoid collision detection to kill boids
+Energy system for perching
+Boid reproduction ie. natural selection
+
+### Inspiration and Credit
+
+Obviously, this project was motivated by an intense curiosity in the boids algorithm (and an overwhelming need to have something easy to program). Thank you to Ben Eater for writing the vast majority of the logic behind this program and providing it open source (significant portions of this readme are also paraphrased from the original repo).
