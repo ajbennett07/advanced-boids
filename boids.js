@@ -6,6 +6,13 @@ const numBoids = 100;
 const visualRange = 75;
 
 var boids = [];
+var predator = {
+  x: Math.random() * width,
+  y: Math.random() *height,
+  dx: Math.random() * 10 - 5,
+  dy: Math.random() * 10 - 5,
+  history: [],
+};
 
 function initBoids() {
   for (var i = 0; i < numBoids; i += 1) {
@@ -15,6 +22,8 @@ function initBoids() {
       dx: Math.random() * 10 - 5,
       dy: Math.random() * 10 - 5,
       history: [],
+      perching: false,
+      energy: 0,
     };
   }
 }
@@ -49,6 +58,30 @@ function sizeCanvas() {
 // Constrain a boid to within the window. If it gets too close to an edge,
 // nudge it back in and reverse its direction.
 function keepWithinBounds(boid) {
+  const margin = 200;
+  const turnFactor = 1;
+
+  if (boid.x < margin) {
+    boid.dx += turnFactor;
+  }
+  if (boid.x > width - margin) {
+    boid.dx -= turnFactor
+  }
+  if (boid.y < margin) {
+    boid.dy += turnFactor;
+    //Perching behavior
+    if(Math.random()*(1/boid.energy)>10) {
+
+    }
+  }
+  if (boid.y > height - margin) {
+    boid.dy -= turnFactor;
+  }
+}
+
+// Identical to keepWithinBounds (above) with one exception:
+// Predatotoids never perch
+function predKeepWithinBounds(boid) {
   const margin = 200;
   const turnFactor = 1;
 
@@ -98,6 +131,8 @@ function avoidOthers(boid) {
   const avoidFactor = 0.05; // Adjust velocity by this %
   let moveX = 0;
   let moveY = 0;
+  let predmoveX = 0;
+  let predmoveY = 0;
   for (let otherBoid of boids) {
     if (otherBoid !== boid) {
       if (distance(boid, otherBoid) < minDistance) {
@@ -106,9 +141,15 @@ function avoidOthers(boid) {
       }
     }
   }
+  if (distance(boid, predator) < minDistance) {
+    predmoveX += boid.x - predator.x;
+    predmoveY += boid.y - predator.y;
+  }
 
   boid.dx += moveX * avoidFactor;
   boid.dy += moveY * avoidFactor;
+  boid.dx += predmoveX * 4 * avoidFactor;
+  boid.dy += predmoveY * 4 * avoidFactor;
 }
 
 // Find the average velocity (speed and direction) of the other boids and
@@ -149,7 +190,7 @@ function limitSpeed(boid) {
   }
 }
 
-const DRAW_TRAIL = false;
+const DRAW_TRAIL = true;
 
 function drawBoid(ctx, boid) {
   const angle = Math.atan2(boid.dy, boid.dx);
@@ -176,6 +217,31 @@ function drawBoid(ctx, boid) {
   }
 }
 
+function drawPredator(ctx, boid) {
+  const angle = Math.atan2(boid.dy, boid.dx);
+  ctx.translate(boid.x, boid.y);
+  ctx.rotate(angle);
+  ctx.translate(-boid.x, -boid.y);
+  ctx.fillStyle = "#eb1a1a";
+  ctx.beginPath();
+  ctx.moveTo(boid.x, boid.y);
+  ctx.lineTo(boid.x - 15, boid.y + 5);
+  ctx.lineTo(boid.x - 15, boid.y - 5);
+  ctx.lineTo(boid.x, boid.y);
+  ctx.fill();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+  if (DRAW_TRAIL) {
+    ctx.strokeStyle = "f45555";
+    ctx.beginPath();
+    ctx.moveTo(boid.history[0][0], boid.history[0][1]);
+    for (const point of boid.history) {
+      ctx.lineTo(point[0], point[1]);
+    }
+    ctx.stroke();
+  }
+}
+
 // Main animation loop
 function animationLoop() {
   // Update each boid
@@ -193,6 +259,16 @@ function animationLoop() {
     boid.history.push([boid.x, boid.y])
     boid.history = boid.history.slice(-50);
   }
+  for(var i =0; i<11;i++) {
+    flyTowardsCenter(predator);
+  }
+  predKeepWithinBounds(predator);
+  predator.dx = predator.dx / 1.1;
+  predator.dy = predator.dy / 1.1;
+  predator.x += predator.dx;
+  predator.y += predator.dy;
+  predator.history.push([predator.x, predator.y])
+  predator.history = predator.history.slice(-50);
 
   // Clear the canvas and redraw all the boids in their current positions
   const ctx = document.getElementById("boids").getContext("2d");
@@ -200,6 +276,7 @@ function animationLoop() {
   for (let boid of boids) {
     drawBoid(ctx, boid);
   }
+  drawPredator(ctx,predator);
 
   // Schedule the next frame
   window.requestAnimationFrame(animationLoop);
