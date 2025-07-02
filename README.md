@@ -52,7 +52,7 @@ Simply download the code and run `index.html` in your browser. I make no attempt
 
 Some of the extra algorithms implemented are:
 
-Pretatoids (see above)
+Predatoids (see above)
 Perching behavior
 
 Future plans include:

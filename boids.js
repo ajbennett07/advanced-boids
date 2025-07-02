@@ -16,7 +16,7 @@ function initBoids() {
       y: Math.random() * height,
       dx: Math.random() * 10 - 5,
       dy: Math.random() * 10 - 5,
-      history: [],
+      history: new Array(),
       perching: false,
       perchstart: 0
     });
@@ -27,7 +27,7 @@ function initBoids() {
       y: Math.random() * height,
       dx: Math.random() * 10 - 5,
       dy: Math.random() * 10 - 5,
-      history: [],
+      history: new Array(),
       perching: false,
       perchstart: 0
     });
@@ -83,7 +83,7 @@ function keepWithinBounds(boid) {
       boid.dx = 0;
       boid.dy = -1;
       boid.y = height -100;
-      boid.history = [];
+      boid.history = [[boid.x,boid.y]];
     }
     else {
       boid.dy -= turnFactor;
@@ -133,15 +133,43 @@ function avoidOthers(boid) {
       }
     }
   }
-  if (distance(boid, predator) < minDistance) {
-    predmoveX += boid.x - predator.x;
-    predmoveY += boid.y - predator.y;
+  for (let predator of predatoids) {
+    //Check collisions with predator
+    if(detectCollision(predator,boid) && Math.random() < 0.3 && BIRTHS) {
+        boid.dead = true;
+        predator.perching = true;
+        predator.y = height - 100;
+    }
+    if (distance(boid, predator) < minDistance) {
+      predmoveX += boid.x - predator.x;
+      predmoveY += boid.y - predator.y;
+    }
   }
-
   boid.dx += moveX * avoidFactor;
   boid.dy += moveY * avoidFactor;
-  boid.dx += predmoveX * 4 * avoidFactor;
-  boid.dy += predmoveY * 4 * avoidFactor;
+  boid.dx += predmoveX * 5 * avoidFactor;
+  boid.dy += predmoveY * 5 * avoidFactor;
+}
+
+function avoidPredOthers(boid) {
+  const minDistance = 20; // The distance to stay away from other boids
+  const avoidFactor = 0.05; // Adjust velocity by this %
+  let moveX = 0;
+  let moveY = 0;
+  let predmoveX = 0;
+  let predmoveY = 0;
+  for (let otherBoid of boids) {
+    if (otherBoid !== boid) {
+      if (distance(boid, otherBoid) < minDistance) {
+        moveX += boid.x - otherBoid.x;
+        moveY += boid.y - otherBoid.y;
+      }
+    }
+  }
+  boid.dx += moveX * avoidFactor;
+  boid.dy += moveY * avoidFactor;
+  boid.dx += predmoveX * 5 * avoidFactor;
+  boid.dy += predmoveY * 5 * avoidFactor;
 }
 
 // Find the average velocity (speed and direction) of the other boids and
@@ -170,9 +198,10 @@ function matchVelocity(boid) {
   }
 }
 
+//This function and the predatoid equivalent deal with the perching mechanic
 function checkPerching(boid) {
   if((Date.now() - boid.perchstart) > 1500){
-      if ((BIRTHS = true) && (Math.random() < 0.2)) {
+      if ((BIRTHS = true) && (Math.random() < 0.5)) {
         boids.push({
           x: boid.x + 5,
           y: boid.y,
@@ -190,6 +219,32 @@ function checkPerching(boid) {
     else  {
       boid.dy = -1;
       boid.dx = 0;
+    }
+}
+
+function checkPredPerching(predator) {
+  if(Math.random() < 0.1 && predatoids.length > 1) {
+    predator.dead = true;
+  }
+  if((Date.now() - predator.perchstart) > 1500){
+      if ((BIRTHS = true) && Math.random() < 0.2) {
+        predatoids.push({
+          x: predator.x + 5,
+          y: predator.y,
+          dx: 0,
+          dy: -1,
+          history: [[predator.x,predator.y]],
+          perching: true,
+          perchstart: predator.perchstart + 5,
+        });
+      }
+      predator.perching = false;
+      perchstart = 0;
+      predator.dy = -10;
+    }
+    else  {
+      predator.dy = -1;
+      predator.dx = 0;
     }
 }
 
@@ -232,6 +287,12 @@ function drawBoid(ctx, boid) {
   }
 }
 
+function detectCollision(boid1,boid2) {
+  if(distance(boid1, boid2) < 7.6) {
+    return true;
+  }
+}
+
 function drawPredator(ctx, boid) {
   const angle = Math.atan2(boid.dy, boid.dx);
   ctx.translate(boid.x, boid.y);
@@ -246,9 +307,10 @@ function drawPredator(ctx, boid) {
   ctx.fill();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-  if (DRAW_TRAIL) {
+  if (DRAW_TRAIL && !boid.perching) {
     ctx.strokeStyle = "f45555";
     ctx.beginPath();
+
     ctx.moveTo(boid.history[0][0], boid.history[0][1]);
     for (const point of boid.history) {
       ctx.lineTo(point[0], point[1]);
@@ -263,6 +325,8 @@ var BIRTHS = true;
 function animationLoop() {
   // Update each boid
   for (let boid of boids) {
+
+
     // Update the velocities according to each rule
     if (boid.perching) {
       checkPerching(boid);
@@ -274,6 +338,7 @@ function animationLoop() {
       limitSpeed(boid);
       keepWithinBounds(boid);
 
+
       // Update the position based on the current velocity
       boid.x += boid.dx;
       boid.y += boid.dy;
@@ -281,17 +346,30 @@ function animationLoop() {
       boid.history = boid.history.slice(-50);
     }
   }
-  //Weights the predatoids centering factor heavily
-  for(var i =0; i<11;i++) {
-    flyTowardsCenter(predator);
+
+  //Weights the predatoids centering factor heavily and slows them down slightly
+  for (let predator of predatoids) {
+    for(var i =0; i<11;i++) {
+      flyTowardsCenter(predator);
+    }
+    keepWithinBounds(predator);
+    avoidPredOthers(predator);
+    if (!predator.perching) {
+      predator.dx = predator.dx / 1.1;
+      predator.dy = predator.dy / 1.1;
+      predator.x += predator.dx;
+      predator.y += predator.dy;
+      predator.history.push([predator.x, predator.y]);
+      predator.history = predator.history.slice(-50);
+
+    }
+    else {
+      checkPredPerching(predator);
+    }
   }
-  KeepWithinBounds(predator);
-  predator.dx = predator.dx / 1.1;
-  predator.dy = predator.dy / 1.1;
-  predator.x += predator.dx;
-  predator.y += predator.dy;
-  predator.history.push([predator.x, predator.y])
-  predator.history = predator.history.slice(-50);
+
+  boids = boids.filter((boid) => !boid.dead);
+  predatoids = predatoids.filter((boid => !boid.dead));
 
   // Clear the canvas and redraw all the boids in their current positions
   const ctx = document.getElementById("boids").getContext("2d");
@@ -299,7 +377,9 @@ function animationLoop() {
   for (let boid of boids) {
     drawBoid(ctx, boid);
   }
-  drawPredator(ctx,predator);
+  for (let predator of predatoids) {
+    drawPredator(ctx,predator);
+  }
 
   // Schedule the next frame
   window.requestAnimationFrame(animationLoop);
