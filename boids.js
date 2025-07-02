@@ -3,20 +3,15 @@ let width = 150;
 let height = 150;
 
 const numBoids = 100;
+const numPredatoids = 1;
 const visualRange = 75;
 
 var boids = [];
-var predator = {
-  x: Math.random() * width,
-  y: Math.random() *height,
-  dx: Math.random() * 10 - 5,
-  dy: Math.random() * 10 - 5,
-  history: [],
-};
+var predatoids = [];
 
 function initBoids() {
   for (var i = 0; i < numBoids; i += 1) {
-    boids[boids.length] = {
+    boids.push({
       x: Math.random() * width,
       y: Math.random() * height,
       dx: Math.random() * 10 - 5,
@@ -24,7 +19,18 @@ function initBoids() {
       history: [],
       perching: false,
       perchstart: 0
-    };
+    });
+  }
+  for (var i = 0; i < numPredatoids; i +=1) {
+    predatoids.push({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      dx: Math.random() * 10 - 5,
+      dy: Math.random() * 10 - 5,
+      history: [],
+      perching: false,
+      perchstart: 0
+    });
   }
 }
 
@@ -82,26 +88,6 @@ function keepWithinBounds(boid) {
     else {
       boid.dy -= turnFactor;
     }
-  }
-}
-
-// Identical to keepWithinBounds (above) with one exception:
-// Predatotoids never perch
-function predKeepWithinBounds(boid) {
-  const margin = 200;
-  const turnFactor = 1;
-
-  if (boid.x < margin) {
-    boid.dx += turnFactor;
-  }
-  if (boid.x > width - margin) {
-    boid.dx -= turnFactor
-  }
-  if (boid.y < margin) {
-    boid.dy += turnFactor;
-  }
-  if (boid.y > height - margin) {
-    boid.dy -= turnFactor;
   }
 }
 
@@ -184,6 +170,29 @@ function matchVelocity(boid) {
   }
 }
 
+function checkPerching(boid) {
+  if((Date.now() - boid.perchstart) > 1500){
+      if ((BIRTHS = true) && (Math.random() < 0.2)) {
+        boids.push({
+          x: boid.x + 5,
+          y: boid.y,
+          dx: 0,
+          dy: -1,
+          history: [[boid.x,boid.y]],
+          perching: true,
+          perchstart: boid.perchstart + 5,
+        });
+      }
+      boid.perching = false;
+      perchstart = 0;
+      boid.dy = -100;
+    }
+    else  {
+      boid.dy = -1;
+      boid.dx = 0;
+    }
+}
+
 // Speed will naturally vary in flocking behavior, but real animals can't go
 // arbitrarily fast.
 function limitSpeed(boid) {
@@ -248,19 +257,15 @@ function drawPredator(ctx, boid) {
   }
 }
 
+var BIRTHS = true;
+
 // Main animation loop
 function animationLoop() {
   // Update each boid
   for (let boid of boids) {
     // Update the velocities according to each rule
-    if(boid.perching && (Date.now() - boid.perchstart) > 1500){
-      boid.perching = false;
-      perchstart = 0;
-      boid.dy = -100;
-    }
-    else if (boid.perching) {
-      boid.dy = -1;
-      boid.dx = 0;
+    if (boid.perching) {
+      checkPerching(boid);
     }
     else {
       flyTowardsCenter(boid);
@@ -276,10 +281,11 @@ function animationLoop() {
       boid.history = boid.history.slice(-50);
     }
   }
+  //Weights the predatoids centering factor heavily
   for(var i =0; i<11;i++) {
     flyTowardsCenter(predator);
   }
-  predKeepWithinBounds(predator);
+  KeepWithinBounds(predator);
   predator.dx = predator.dx / 1.1;
   predator.dy = predator.dy / 1.1;
   predator.x += predator.dx;
