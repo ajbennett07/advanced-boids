@@ -67,6 +67,11 @@ function keepWithinBounds(boid) {
   const margin = 200;
   const turnFactor = 1;
 
+  if (Math.abs(boid.y) > height*10) {
+    boid.dead = true;
+  }
+
+
   if (boid.x < margin) {
     boid.dx += turnFactor;
   }
@@ -251,7 +256,7 @@ function checkPredPerching(predator) {
 // Speed will naturally vary in flocking behavior, but real animals can't go
 // arbitrarily fast.
 function limitSpeed(boid) {
-  const speedLimit = 15;
+  const speedLimit = 13;
 
   const speed = Math.sqrt(boid.dx * boid.dx + boid.dy * boid.dy);
   if (speed > speedLimit) {
@@ -353,6 +358,7 @@ function animationLoop() {
       flyTowardsCenter(predator);
     }
     keepWithinBounds(predator);
+    limitSpeed(predator);
     avoidPredOthers(predator);
     if (!predator.perching) {
       predator.dx = predator.dx / 1.1;
