@@ -1,7 +1,7 @@
 # Boids algorithm demonstration
 
 Copyright 2020 Ben Eater
-Copyright 2024 Albert Bennett
+Copyright 2025 Albert Bennett
 
 This code is [MIT licensed](http://en.wikipedia.org/wiki/MIT_License).
 
@@ -32,13 +32,17 @@ Boids also try to conform their velocity vectors with the rest of the flock. Thi
 
 These are all the "extras" I've added from the base boid algorithm:
 
-### 1. The Predatoid
+### 1. The Predatoids
 
-The predatoid is a red-colored boid that has slightly different behavior from the others. Its pathfinding only takes into Alignment into account. Other boids will "run away" from the predatoid. This models predators in real ecosystems.
+The predatoids are a species of red boids that has slightly different behavior from the others. Its pathfinding only takes into Alignment and blue-Boid coherence into account. Other boids will "run away" from the predatoid. Predatoids kill normal boids that they touch. This models predators in real ecosystems.
 
 ### 2. Perching
 
 If a boid finds itself at the bottom of the screen, it has a small chance to enter perching mode. While a boid is perching, it doesn't move and points straight up. After a short period of rest, the boid shoots back into the sky and is absorbed into the flock.
+
+### 3. Breeding
+
+Both normal and predator boids can "breed" given a small chance, either when they're perching or when they kill another boid. 
 
 ## Visual range
 
@@ -52,13 +56,13 @@ Simply download the code and run `index.html` in your browser. I make no attempt
 
 Some of the extra algorithms implemented are:
 
-Predatoids (see above)
-Perching behavior
+Predatoids (see above)  
+Perching Behavior  
+Boid Breeding
 
-Future plans include:
-Predatoid collision detection to kill boids
-Energy system for perching
-Boid reproduction ie. natural selection
+Future plans include:  
+Energy system for perching  
+Boid Evolution System?? - Mutations, Boid Selection, etc.
 
 ### Inspiration and Credit
 

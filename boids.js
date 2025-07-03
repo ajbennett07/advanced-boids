@@ -2,15 +2,22 @@
 let width = 150;
 let height = 150;
 
-const numBoids = 100;
-const numPredatoids = 1;
-const visualRange = 75;
+// const numBoids = 100;
+// const numPredatoids = 1;
+// const BIRTHS = true;
+// const PERCHING = true;
+// const DRAW_TRAIL = true;
 
 var boids = [];
 var predatoids = [];
 
+var centerOfMass = [width / 2, height / 2];
+var averageVelocity = [0, 0];
+
+//const config = require("./config.json");
+
 function initBoids() {
-  for (var i = 0; i < numBoids; i += 1) {
+  for (var i = 0; i < config.SETUP.NUM_BOIDS; i += 1) {
     boids.push({
       x: Math.random() * width,
       y: Math.random() * height,
@@ -21,13 +28,14 @@ function initBoids() {
       perchstart: 0
     });
   }
-  for (var i = 0; i < numPredatoids; i +=1) {
+  for (var i = 0; i < config.SETUP.NUM_PREDATOIDS; i +=1) {
     predatoids.push({
       x: Math.random() * width,
       y: Math.random() * height,
       dx: Math.random() * 10 - 5,
       dy: Math.random() * 10 - 5,
       history: new Array(),
+      pregnant: false,
       perching: false,
       perchstart: 0
     });
@@ -61,13 +69,20 @@ function sizeCanvas() {
   canvas.height = height;
 }
 
+// global update functions
+
+function updateGlobals() {
+  
+}
+
+
 // Constrain a boid to within the window. If it gets too close to an edge,
 // nudge it back in and reverse its direction.
 function keepWithinBounds(boid) {
   const margin = 200;
   const turnFactor = 1;
 
-  if (Math.abs(boid.y) > height*10) {
+  if (Math.abs(boid.y) > height*10 && config.MECHANICS.BIRTHS) {
     boid.dead = true;
   }
 
@@ -81,7 +96,15 @@ function keepWithinBounds(boid) {
   if (boid.y < margin) {
     boid.dy += turnFactor;
   }
-  if (boid.y > height - margin + 100) {
+  if((boid.y > height - margin + 100) && config.MECHANICS.PERCHING && boid.pregnant) {
+      boid.perchstart = Date.now();
+      boid.perching = true;
+      boid.dx = 0;
+      boid.dy = -1;
+      boid.y = height -100;
+      boid.history = [[boid.x,boid.y]];
+  }
+  if ((boid.y > height - margin + 100) && config.MECHANICS.PERCHING) {
     if(Math.random()>0.98) {
       boid.perchstart = Date.now();
       boid.perching = true;
@@ -98,15 +121,15 @@ function keepWithinBounds(boid) {
 
 // Find the center of mass of the other boids and adjust velocity slightly to
 // point towards the center of mass.
-function flyTowardsCenter(boid) {
-  const centeringFactor = 0.005; // adjust velocity by this %
+function flyTowardsCenter(boid, entities) {
+  const centeringFactor = config.BOIDS.CENTERING_FACTOR; // adjust velocity by this %
 
   let centerX = 0;
   let centerY = 0;
   let numNeighbors = 0;
 
-  for (let otherBoid of boids) {
-    if (distance(boid, otherBoid) < visualRange) {
+  for (let otherBoid of entities) {
+    if (distance(boid, otherBoid) < config.MECHANICS.VISUAL_RANGE) {
       centerX += otherBoid.x;
       centerY += otherBoid.y;
       numNeighbors += 1;
@@ -123,14 +146,14 @@ function flyTowardsCenter(boid) {
 }
 
 // Move away from other boids that are too close to avoid colliding
-function avoidOthers(boid) {
+function avoidOthers(boid, entities) {
   const minDistance = 20; // The distance to stay away from other boids
   const avoidFactor = 0.05; // Adjust velocity by this %
   let moveX = 0;
   let moveY = 0;
   let predmoveX = 0;
   let predmoveY = 0;
-  for (let otherBoid of boids) {
+  for (let otherBoid of entities) {
     if (otherBoid !== boid) {
       if (distance(boid, otherBoid) < minDistance) {
         moveX += boid.x - otherBoid.x;
@@ -140,10 +163,13 @@ function avoidOthers(boid) {
   }
   for (let predator of predatoids) {
     //Check collisions with predator
-    if(detectCollision(predator,boid) && Math.random() < 0.3 && BIRTHS) {
-        boid.dead = true;
-        predator.perching = true;
-        predator.y = height - 100;
+    if(detectCollision(predator,boid)) {
+        if(Math.random() < 0.5) {
+          boid.dead = true;
+        }
+        if (config.MECHANICS.BIRTHS && Math.random() <= 0.35) {
+          predator.pregnant = true;
+        }
     }
     if (distance(boid, predator) < minDistance) {
       predmoveX += boid.x - predator.x;
@@ -165,16 +191,14 @@ function avoidPredOthers(boid) {
   let predmoveY = 0;
   for (let otherBoid of boids) {
     if (otherBoid !== boid) {
-      if (distance(boid, otherBoid) < minDistance) {
+      if (distance(boid, predatoids) < minDistance) {
         moveX += boid.x - otherBoid.x;
         moveY += boid.y - otherBoid.y;
       }
     }
   }
-  boid.dx += moveX * avoidFactor;
-  boid.dy += moveY * avoidFactor;
-  boid.dx += predmoveX * 5 * avoidFactor;
-  boid.dy += predmoveY * 5 * avoidFactor;
+  boid.dx += moveX * 5* avoidFactor;
+  boid.dy += moveY * 5 * avoidFactor;
 }
 
 // Find the average velocity (speed and direction) of the other boids and
@@ -187,7 +211,7 @@ function matchVelocity(boid) {
   let numNeighbors = 0;
 
   for (let otherBoid of boids) {
-    if (distance(boid, otherBoid) < visualRange) {
+    if (distance(boid, otherBoid) < config.MECHANICS.VISUAL_RANGE) {
       avgDX += otherBoid.dx;
       avgDY += otherBoid.dy;
       numNeighbors += 1;
@@ -206,7 +230,7 @@ function matchVelocity(boid) {
 //This function and the predatoid equivalent deal with the perching mechanic
 function checkPerching(boid) {
   if((Date.now() - boid.perchstart) > 1500){
-      if ((BIRTHS = true) && (Math.random() < 0.5)) {
+      if ((config.MECHANICS.BIRTHS = true) && (Math.random() < selectBirthCoefficient())) {
         boids.push({
           x: boid.x + 5,
           y: boid.y,
@@ -227,21 +251,38 @@ function checkPerching(boid) {
     }
 }
 
-function checkPredPerching(predator) {
-  if(Math.random() < 0.1 && predatoids.length > 1) {
-    predator.dead = true;
+function selectBirthCoefficient() {
+  if (boids.length < predatoids.length) {
+    return .8;
   }
+  
+  if (boids.length > 1000) {
+    return 0.1;
+  }
+  return 0.25;
+}
+
+function checkPredPerching(predator) {
+  if(predator.pregnant) {
+    predator.dy += 500;
+  }
+  
   if((Date.now() - predator.perchstart) > 1500){
-      if ((BIRTHS = true) && Math.random() < 0.2) {
+      if (predator.pregnant && predator.perching) {
         predatoids.push({
           x: predator.x + 5,
           y: predator.y,
           dx: 0,
           dy: -1,
           history: [[predator.x,predator.y]],
+          pregnant: false,
           perching: true,
-          perchstart: predator.perchstart + 5,
+          perchstart: predator.perchstart,
         });
+      }
+      if ((Math.random() < 0.1) && predatoids.length > 1) {
+        console.log("predator death")
+        predator.dead = true;
       }
       predator.perching = false;
       perchstart = 0;
@@ -265,7 +306,6 @@ function limitSpeed(boid) {
   }
 }
 
-const DRAW_TRAIL = true;
 
 function drawBoid(ctx, boid) {
   const angle = Math.atan2(boid.dy, boid.dx);
@@ -281,7 +321,7 @@ function drawBoid(ctx, boid) {
   ctx.fill();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-  if (DRAW_TRAIL) {
+  if (config.SETUP.DRAW_TRAIL) {
     ctx.strokeStyle = "#558cf466";
     ctx.beginPath();
     ctx.moveTo(boid.history[0][0], boid.history[0][1]);
@@ -312,8 +352,8 @@ function drawPredator(ctx, boid) {
   ctx.fill();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-  if (DRAW_TRAIL && !boid.perching) {
-    ctx.strokeStyle = "f45555";
+  if (config.SETUP.DRAW_TRAIL && !boid.perching) {
+    ctx.strokeStyle = "#eb1a1a66";
     ctx.beginPath();
 
     ctx.moveTo(boid.history[0][0], boid.history[0][1]);
@@ -324,10 +364,22 @@ function drawPredator(ctx, boid) {
   }
 }
 
-var BIRTHS = true;
-
 // Main animation loop
 function animationLoop() {
+  //Reds cannot go extinct
+  if (predatoids.length < 1) {
+    predatoids.push({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      dx: Math.random() * 10 - 5,
+      dy: Math.random() * 10 - 5,
+      history: [[0,0]],
+      pregnant: false,
+      perching: false,
+      perchstart: 0
+    });
+  }
+
   // Update each boid
   for (let boid of boids) {
 
@@ -337,8 +389,8 @@ function animationLoop() {
       checkPerching(boid);
     }
     else {
-      flyTowardsCenter(boid);
-      avoidOthers(boid);
+      flyTowardsCenter(boid,boids);
+      avoidOthers(boid,boids);
       matchVelocity(boid);
       limitSpeed(boid);
       keepWithinBounds(boid);
@@ -354,8 +406,8 @@ function animationLoop() {
 
   //Weights the predatoids centering factor heavily and slows them down slightly
   for (let predator of predatoids) {
-    for(var i =0; i<11;i++) {
-      flyTowardsCenter(predator);
+    for(var i =0; i<7;i++) {
+      flyTowardsCenter(predator,boids)
     }
     keepWithinBounds(predator);
     limitSpeed(predator);
@@ -369,13 +421,16 @@ function animationLoop() {
       predator.history = predator.history.slice(-50);
 
     }
-    else {
+    else if (config.MECHANICS.PERCHING) {
       checkPredPerching(predator);
     }
   }
 
   boids = boids.filter((boid) => !boid.dead);
   predatoids = predatoids.filter((boid => !boid.dead));
+
+  //Everythign above this line needs to go into update i think
+
 
   // Clear the canvas and redraw all the boids in their current positions
   const ctx = document.getElementById("boids").getContext("2d");
